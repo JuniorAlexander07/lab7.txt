@@ -1,0 +1,41 @@
+sudo apt install nfs-kernel-server -y
+
+sudo mkdir /mnt/OS3
+cd /mnt/OS3
+ls
+sudo touch Adrian{1..100}.txt
+ls
+
+sudo chown nobody:nogroup /mnt/OS3
+
+sudo chmod 755 /mnt/OS3
+
+sudo nano /etc/exports
+al final del archivo ponemos:
+/mnt/OS3 192.168.100.116(rw,sync,no_subtree_check)
+guardar y salir
+sudo exportfs -a
+sudo systemctl restart nfs-kernel-server
+sudo iptables -A INPUT -p udp --dport 2049 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 2049 -j ACCEPT
+
+
+EN EL CLIENTE:
+
+sudo apt install nfs-common
+sudo mkdir /var/OS3
+sudo nano /etc/fstab
+al final del archivo montar automáticamente la carpeta compartida por nfs en cada reinicio:
+192.168.100.115:/mnt/OS3 /var/OS3 nfs defaults 0 0
+sudo systemctl daemon-reload
+sudo mount 192.168.100.115:/mnt/OS3 
+
+cd /var/OS3
+ls
+y aquí veremos que ya están los archivos 
+sudo reboot
+
+Cuando suba entra
+cd /var/OS3
+ls
+
