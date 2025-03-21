@@ -1,0 +1,69 @@
+Instalamos samba con:
+sudo apt install samba samba-client samba-common  -y
+
+ahora vamos a habilitarlo con:
+sudo systemctl enable smbd
+sudo systemctl start smbd
+sudo systemctl status smbd
+
+sudo systemctl enable nmb
+sudo systemctl start nmb
+sudo systemctl status nmb
+
+ahora lo que haremos es crear un directorio 
+sudo mkdir -p /srv/samba/share
+
+ahora vamos a crear el grupo, el usuario y añadir el usuario al grupo con:
+sudo groupadd sambausers
+sudo useradd adrian -p 12345
+sudo usermod -aG sambausers Adrian
+sudo smbpasswd -a adrian 
+pedira contraseña: 12345
+
+ para verificar si el usuario ya pertenece al grupo:
+groups adrian
+
+Ahora vamos a darle los permisos correspondientes 
+sudo chmod -R 0777 /srv/samba/share
+sudo chown nobody:sambausers /srv/samba/share 
+sudo chown -R alexander:/srv/samba/share
+
+entramos a la carpeta:
+cd  /srv/samba/share
+ls
+ahora vamos a crear los archivos 
+sudo touch Adrian{1..100}.txt
+
+ahora le daremos permisos con el firewall a los puertos que utilizara samba:
+sudo iptables -A INPUT -p tcp --dport 139 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 445 -j ACCEPT
+sudo iptables -A INPUT -p udp --dport 137 -j ACCEPT
+sudo iptables -A INPUT -p udp --dport 138 -j ACCEPT
+
+guardamos las reglas:
+sudo netfilter-persistent save
+
+ahora editaremos el archivo de configuración de samba con:
+sudo nano /etc/samba/smb.conf
+
+iremos hasta lo ultimo y agregaremos lo siguiente:
+
+[public]
+   path = /srv/samba/share
+   browsable = yes
+   writable = yes
+   guest ok = yes
+   read only = no
+
+guardamos y salimos
+
+
+ahora vamos a reiniciar los servicios
+sudo systemctl restart smb
+
+ahora vamos a Windows y ponemos esto en el explorador o ponlo en la ventanita que sale al presionar W+R
+\\192.168.100.115\
+adrian
+12345
+
+Y aquí se realiza el mapeo
