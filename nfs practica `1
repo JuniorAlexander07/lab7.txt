@@ -1,41 +1,95 @@
+Instalamos nfs
+
 sudo apt install nfs-kernel-server -y
 
+vamos a crear un directorio en esta ruta:
 sudo mkdir /mnt/OS3
 cd /mnt/OS3
 ls
+
+creamos los 100 archivos txt:
 sudo touch Adrian{1..100}.txt
 ls
 
+lo ponemos que nadie sea propietario:
 sudo chown nobody:nogroup /mnt/OS3
 
+le damos los permisos al directorio:
 sudo chmod 755 /mnt/OS3
 
+editamos el siguiente archivo:
 sudo nano /etc/exports
+
 al final del archivo ponemos:
-/mnt/OS3 192.168.100.116(rw,sync,no_subtree_check)
-guardar y salir
+
+/mnt/OS3 192.168.100.116 (rw,sync,no_subtree_check)   
+ la ip tiene que ser la del cliente o sea la ip de la otra maquina que le vamos a enviar los archivos
+
+Guardar y salir del archivo
+
+Comando para aplicar los cambios y actualizar lo que hicimos en el archivo exports
 sudo exportfs -a
+
+Ahora vamos a reiniciar el servicio 
 sudo systemctl restart nfs-kernel-server
+
+vamos a permitir conexiones tanto TCP como UDP hacia el puerto 2049, que es el puerto estándar de NFS
 sudo iptables -A INPUT -p udp --dport 2049 -j ACCEPT
 sudo iptables -A INPUT -p tcp --dport 2049 -j ACCEPT
 
+en caso de no tener iptables instalado:
+sudo apt install iptables
+sudo systemctl enable iptables
+sudo systemctl start iptables
+usa los commandos para permitir las conexiones nuevamente.
 
-EN EL CLIENTE:
+ahora vamos EN EL CLIENTE:
 
+instalamos el cliente de nfs
 sudo apt install nfs-common
-sudo mkdir /var/OS3
-sudo nano /etc/fstab
-al final del archivo montar automáticamente la carpeta compartida por nfs en cada reinicio:
-192.168.100.115:/mnt/OS3 /var/OS3 nfs defaults 0 0
-sudo systemctl daemon-reload
-sudo mount 192.168.100.115:/mnt/OS3 
 
+creamos un directorio en var:
+sudo mkdir /var/OS3
+
+vamos a editar el siguiente archivo
+sudo nano /etc/fstab
+
+al final del archivo montar automáticamente la carpeta compartida por nfs en cada reinicio:
+192.168.100.115:/mnt/OS3 /var/OS3 nfs defaults 0 0    
+ la ip tiene que ser la ip del servidor o sea, nuestra maquina Linux o servidor.
+
+Guardar y salir
+
+Ejecutamos el siguiente comando:
+sudo systemctl daemon-reload
+
+explicación: daemon-reload le dice a systemd que vuelva a leer todos los archivos de configuración de servicios sin detener los servicios en ejecución.
+
+Ahora para montar una carpeta compartida por NFS desde un servidor en tu sistema local:
+sudo mount 192.168.100.115:/mnt/OS3          ip del servidor
+
+nos dirigimos a la siguiente ruta:
 cd /var/OS3
 ls
-y aquí veremos que ya están los archivos 
+
+en este punto ya debería de haberse compartido los archivos
+
+
+vamos a reiniciar al cliente:
 sudo reboot
 
-Cuando suba entra
+ahora en el servidor vamos a editar un archivo y esperemos que suba el cliente y buscamos el archivo.
+
+En el servidor:
+sudo nano Adrian22.txt
+Dentro escribe lo que sea
+Guardamos y salimos
+
+Cuando suba el cliente nos dirigimos a la siguiente ruta en el cliente:
 cd /var/OS3
 ls
 
+le damos un cat al archivo que editamos
+cat Adrian22.txt
+
+debería de salir lo que editamos en el servidor
