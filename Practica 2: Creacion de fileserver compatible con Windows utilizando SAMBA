@@ -68,9 +68,9 @@ iremos hasta lo ultimo y agregaremos lo siguiente:
 
 [public]
    path = /srv/samba/share                       #le dice la ruta del archivo que se compartira
-   browsable = yes                                #permite que el recurso aparezca al navegar en la red
-   writable = yes                                      #permite que los usuarios puedan escribir el archivo
-   guest ok = yes                                             #los invitados están permitidos al acceso
+   browsable = yes                               #permite que el recurso aparezca al navegar en la red
+   writable = yes                                #permite que los usuarios puedan escribir el archivo
+   guest ok = yes                                #los invitados están permitidos al acceso
    read only = no                                #dice que no es solo lectura, también permite escribir
 
 guardamos y salimos
