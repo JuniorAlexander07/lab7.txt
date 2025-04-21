@@ -1,4 +1,4 @@
-Instalamos samba con:
+Instalamos samba y el cliente y todo lo que usaremos con:
 sudo apt install samba samba-client samba-common  -y
 
 ahora vamos a habilitarlo con:
@@ -13,20 +13,32 @@ sudo systemctl status nmb
 ahora lo que haremos es crear un directorio 
 sudo mkdir -p /srv/samba/share
 
-ahora vamos a crear el grupo, el usuario y añadir el usuario al grupo con:
+ahora vamos a crear el grupo:
 sudo groupadd sambausers
+
+creamos el usuario adrian y -p especifica la contraseña del usuario, en este caso 12345:
 sudo useradd adrian -p 12345
-sudo usermod -aG sambausers Adrian
+
+agregamos el usuario al grupo sambausers y agregate a ti mismo por si acaso
+sudo usermod -aG sambausers adrian
+sudo usermod -aG sambausers alexander
+
+le cambiamos la contraseña de samba al usuario adrian:
 sudo smbpasswd -a adrian 
 pedira contraseña: 12345
+confirmala: 12345
 
- para verificar si el usuario ya pertenece al grupo:
+para verificar si el usuario ya pertenece al grupo:
 groups adrian
 
-Ahora vamos a darle los permisos correspondientes 
+Ahora vamos a darle los permisos correspondientes  a la carpeta que creamos en esta ruta:
 sudo chmod -R 0777 /srv/samba/share
-sudo chown nobody:sambausers /srv/samba/share 
-sudo chown -R alexander:/srv/samba/share
+
+ahora vamos a cambiar el propetario a nadie para que todos puedan acceder a ella, al directorio con:
+sudo chown nobody:sambausers /srv/samba/share
+
+ahora cambiamos el propietario de la carpeta a mi usuario, pero no modificaremos el grupo:
+sudo chown -R alexander: /srv/samba/share
 
 entramos a la carpeta:
 cd  /srv/samba/share
@@ -43,27 +55,52 @@ sudo iptables -A INPUT -p udp --dport 138 -j ACCEPT
 guardamos las reglas:
 sudo netfilter-persistent save
 
+en caso de no tener iptables instalado:
+sudo apt install iptables
+sudo systemctl enable iptables
+sudo systemctl start iptables
+usa los commandos para permitir las conexiones nuevamente.
+
 ahora editaremos el archivo de configuración de samba con:
 sudo nano /etc/samba/smb.conf
 
 iremos hasta lo ultimo y agregaremos lo siguiente:
 
 [public]
-   path = /srv/samba/share
-   browsable = yes
-   writable = yes
-   guest ok = yes
-   read only = no
+   path = /srv/samba/share                       #le dice la ruta del archivo que se compartira
+   browsable = yes                                #permite que el recurso aparezca al navegar en la red
+   writable = yes                                      #permite que los usuarios puedan escribir el archivo
+   guest ok = yes                                             #los invitados están permitidos al acceso
+   read only = no                                #dice que no es solo lectura, también permite escribir
 
 guardamos y salimos
 
-
 ahora vamos a reiniciar los servicios
-sudo systemctl restart smb
+sudo systemctl restart smbd
 
-ahora vamos a Windows y ponemos esto en el explorador o ponlo en la ventanita que sale al presionar W+R
-\\192.168.100.115\
+ifconfig
+
+ahora vamos a Windows y en la ventanita que sale al presionar W+R colocamos:
+\\192.168.100.115\                        ip de la maquina virtual
+
+Saldrá una ventanita que nos pedirá escribir las credenciales de red
+
+Como usuario va el usuario que creamos previamente:
 adrian
+y su contraseña de samba
 12345
 
 Y aquí se realiza el mapeo
+
+Entramos a la carpeta public y ahí estarán los txt
+
+
+Vamos a editar el archivo adrian99.txt con notas de windows
+Y escribe lo siguiente:
+ el zumzum de la carabela
+guardamos 
+
+vamos ahora a la maquina virtual y nos dirigimos al siguiente directorio para verificar si se hicieron los cambios:
+cd  /srv/samba/share
+ls
+cat Adrian99.txt
