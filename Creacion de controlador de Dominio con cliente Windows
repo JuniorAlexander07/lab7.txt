@@ -1,0 +1,159 @@
+Lo primero que haremos es cambiar el hostname:
+hostnamectl set-hostname SO3.inet
+
+entramos al archivo hosts:
+sudo nano /etc/hosts
+aquí agregamos la ip de nuestra maquina y un dominio justo debajo de la ip 127.0.1.1
+192.168.100.x    SO3-DOM SO3.inet
+
+Guardamos y salimos
+
+Comprobamos nuestro dominio con:
+hostname -f
+
+ahora le haremos un ping a nuestro dominio
+ping -c3 SO3-DOM
+
+ahora desactivaremos el servicio de resolución DNS
+sudo systemctl disable --now systemd -resolved
+
+ahora ejecutaremos el siguiente comando que sirve para eliminar el archivo /etc/resolv.conf, que es el archivo que configura los servidores DNS en sistemas Linux:
+sudo unlink /etc/resolv.conf
+
+ahora vamos a editar el archivo:
+sudo nano /etc/resolv.conf
+
+pegamos lo siguiente dentro:
+# samba server IP address
+nameserver 192.168.100.x
+
+# fallback resolver Quad9
+nameserver 9.9.9.9
+
+# Dominio principal de samba
+search SO3.inet
+
+guardar y salir
+
+ahora usamos chattr para proteger el archivo /etc/resolv.conf contra modificaciones, incluso por el usuario root:
+sudo chattr +i /etc/resolv.conf
+
+ahora instalaremos la herramienta de samba:
+sudo apt-get install -y acl attr samba samba-dsdb-modules samba-vfs-modules smbclient winbind libpam-winbind libnss-winbind libpam-krb5 krb5-config krb5-user chrony net-tools
+
+si aparece un cuadro con nuestro dominio le damos a ok
+
+vamos a detener y deshabilitar estos 3 servicios de samba con:
+sudo systemctl disable --now smbd nmbd winbind
+
+ahora activaremos el siguiente servicio de samba:
+sudo systemctl unmask samba-ad-dc
+sudo systemctl enable samba-ad-dc
+
+guardamos el fichero de configuración original de samba por si acaso:
+sudo mv /etc/samba/smb.conf /etc/samba/smb.conf.copia
+
+ahora vamos a configurar el controlador de dominio de samba a través de samba tool:
+sudo samba-tool domain provision --use-rfc2307 –interactive
+
+nos pedira unos datos ponemos lo siguiente:
+SO3.inet
+SO3-DOM
+Enter (deja la 3era por defualt)
+9.9.9.9                    nuestro dns ponemos
+
+Nos pedirá crear una contraseña de administrador y confirmarla
+1234567890
+
+Ahora vamos a renombrar al archivo de conf de kerberos:
+sudo mv /etc/krb5.conf /etc/krb5.conf.original
+
+ahora vamos a copiar la configuración generada por samba-tool:
+sudo cp /var/lib/samba/private/krb5.conf /etc/krb5.conf
+
+vamos a iniciar el servicio de samba:
+sudo systemctl start samba-ad-dc
+sudo systemctl status samba-ad-dc
+
+vamos a permitir al grupo chrony leer en el directorio ntp signd
+sudo chown root:_chrony /var/lib/samba/ntp_signd/
+
+ahora vamos a cambiar los permisos en el directorio ntp signd:
+sudo chmod 750 /var/lib/samba/ntp_signd/
+
+vamos a editar el siguiente archivo de configuración:
+sudo nano /etc/chrony/chrony.conf
+
+al final del archivo agregamos lo siguiente:
+bindcmdaddress 192.168.100.x
+allow 192.168.100.x/24
+ntpsigndsocket /var/lib/samba/ntp_signd
+
+guardamos y salimos
+
+vamos a instalar chrony:
+sudo apt install chrony
+vamos a reiniciar y activar el servicio de chrony
+sudo systemctl list-units | grep chrony
+sudo systemctl enable chrony
+sudo systemctl start chrony
+sudo systemctl status chrony
+sudo systemctl restart chronyd
+
+ahora vamos a verificar que todo vaya bien y responda con:
+host -t A SO3.inet
+host -t A SO3-DOM
+nos lanzara nuestra ip
+
+comprobemos kerberos y Ldap:
+host -t SRV _kerberos._udp.SO3.inet.
+host -t SRV _ldap._udp.SO3.inet.
+
+comprobemos el login con el usuario administrator con el siguiente comando:
+kinit administrator@SO3.INET
+nos pedira contraseña, es la que pusimos anteriormente: 1234567890
+
+nos tiene que decir que nuestra contraseña va a expirar en tal días
+
+para ver mas información ejecutamos el comando:
+klist
+
+vamos a crear un usuario samba 
+sudo samba-tool user create adrian
+nos pedira contraseña para ponerle: 1234567
+confirmala
+
+comprobar que el usuario se creo
+sudo samba-tool user list                 (nos dara una lista de usuarios)
+
+vamos a encender una maquina Windows 10, en mi caso usare vmware
+le damos click derecho en el icono del internet
+seleccionamos “abrir configuración de red e internet”
+le damos a cambiar opciones del adaptador
+en el adaptador ethernet0 le damos click derecho y propiedades 
+le damos click en “habilitar el protocolo de internet versión 4 (tcp/ipv4)¨
+le damos abajo donde dice “usar las siguientes direcciones de servidor dns
+ponemos nuestro ip y dns así:
+192.168.100.x
+9.9.9.9
+Le damos a aceptar y salimos de todas esas pestañas
+Ve al buscador de Windows y buscar el powershell y ejecútalo como administrador
+
+Y vamos a poner los siguientes comandos a ejecutar:
+Get-DnsClientServerAddress
+Debería de verse nuestra ip y dns
+
+Ahora le daremos un ping a nuestro dominio
+ping SO3.inet
+
+vamos añadir el cliente al active directory con:
+Add-Computer -DomainName "SO3.inet" -Restart
+
+Saldra una ventanita pidiendo nuestro usuario y contraseña, pondremos lo siguiente:
+Usuario: administrator@SO3.inet
+Contraseña: 1234567890
+
+Después si da un error o algo intenta de todas formas aunque no de error reiniciar la maquina y volver a intentar iniciar sesión, abajo tiene que aparecer “otro usuario” en la pantalla de bloqueo y cuando le des a otro usuario debería de aparecer nuestro nombre de dominio, ingresamos sesión:
+
+Usuario: SO3\adrian
+Contraseña: 1234567
